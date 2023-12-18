@@ -1,8 +1,10 @@
 from flask import Flask, jsonify, request
 import apiLogic
 import requests
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
 
 @app.route('/getUserBatchDetails/<user_id>', methods=['GET'])
@@ -89,6 +91,24 @@ def search_pickup_points():
         lat = float(request.args.get('lat', 0.0))
         lon = float(request.args.get('lon', 0.0))
         return apiLogic.search_pickup_points_agp(lat, lon)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/getProductByPickUpPointCode/<pp_code>', methods=['GET'])
+def search_product_by_pp_code(pp_code):
+    try:
+        return apiLogic.get_product_by_pp_code(pp_code)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/getPickUpPointCodesByItemSku/<item_sku>', methods=['GET'])
+def search_pp_code_by_item_sku(item_sku):
+    try:
+        return jsonify(apiLogic.get_pp_codes_by_product(item_sku))
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500

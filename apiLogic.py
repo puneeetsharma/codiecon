@@ -134,14 +134,14 @@ def get_user_recommended_categories(user_id):
 
 def get_user_recommended_categories_names(user_id):
     categories = get_user_recommended_categories(user_id)
-    category_data_array = []
+    category_data_dict = {}
 
     for category_code in categories:
         category_data = fetch_category_data(category_code, store_id, channel_id, client_id, request_id, username)
-        # print(category_data)
         if category_data:
-            category_data_array.append(category_data)
-    return category_data_array
+            category_data_dict[category_code] = category_data
+
+    return category_data_dict
 
 
 def fetch_category_data(category_code, store_id, channel_id, client_id, request_id, username):
@@ -252,7 +252,7 @@ def get_all_badge_details():
 
 def search_pickup_points_agp(lat, lon):
     # Get latitude and longitude from request parameters
-
+    print(lat,lon)
     # Define the search query
     search_url = 'http://aggregate-platform-query.qa2-sg.cld/api-native/business_partner_pickup_points/_search'
     headers = {
@@ -348,6 +348,76 @@ def search_pickup_points_agp(lat, lon):
 
     # Make the search request
     response = requests.post(search_url, headers=headers, json=query)
+    try:
+        response_data = response.json()
+    except json.JSONDecodeError:
+        # Handle the case where the response is not in JSON format
+        return []
+    parsed_data = []
+
+    for hit in response_data.get('hits', {}).get('hits', []):
+        source = hit.get('_source', {})
+        geo_point = source.get('geoPoint', {})
+        full_pickup_point_address = source.get('fullPickupPointAddress', '')
+
+        data = {
+            'name': source.get('name', ''),
+            'businessPartnerName': source.get('businessPartnerName', ''),
+            'code': source.get('code', ''),
+            'geoPoint': {
+                'lat': geo_point.get('lat', 0.0),
+                'lon': geo_point.get('lon', 0.0),
+            },
+            'fullPickupPointAddress': full_pickup_point_address,
+        }
+
+        parsed_data.append(data)
+
     result = response.json()
 
-    return jsonify(result)
+    return jsonify(parsed_data)
+
+
+def get_product_by_pp_code(pp_code):
+    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
+    solr = pysolr.Solr(SOLR_URL, timeout=10)
+
+    # Construct the Solr query with the user_id
+    solr_query = f"pickupPointCode:{pp_code}"
+    print(solr_query)
+
+    # Execute the Solr query and return the documents
+    results = solr.search(solr_query, rows=10)  # You can adjust the number of rows as needed
+    return results.docs
+
+
+def get_pp_codes_by_product(item_sku):
+    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
+    solr = pysolr.Solr(SOLR_URL, timeout=10)
+    params = {
+        'fl': 'pickupPointCode,latLong,merchantCode'
+    }
+    # Construct the Solr query with the user_id
+    solr_query = f"itemSku:{item_sku}"
+    print(solr_query)
+
+    # Execute the Solr query and return the documents
+    results = solr.search(solr_query, **params, rows=10)  # You can adjust the number of rows as needed
+
+    return results.docs
+
+
+def get_seller_name(merchant_code):
+    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/sellerCollection"  # Update with your Solr URL
+    solr = pysolr.Solr(SOLR_URL, timeout=10)
+    params = {
+        'fl': 'merchantName'
+    }
+    # Construct the Solr query with the user_id
+    solr_query = f"merchant_code:{merchant_code}"
+    print(solr_query)
+
+    # Execute the Solr query and return the documents
+    results = solr.search(solr_query, **params, rows=10)  # You can adjust the number of rows as needed
+
+    return results.docs
