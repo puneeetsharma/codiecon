@@ -36,10 +36,10 @@ def get_pre_order_products(user_id):
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/getPreOrderProductsByCategory/<user_id>', methods=['GET'])
-def get_pre_order_products_by_category(user_id):
+@app.route('/getPreOrderProductsByCategory/<category_id>', methods=['GET'])
+def get_pre_order_products_by_category(category_id):
     try:
-        data = apiLogic.get_pre_order_products_data_for_category(user_id)
+        data = apiLogic.get_pre_order_products_data_for_category(category_id)
 
         return jsonify(data)
     except Exception as e:
@@ -60,6 +60,16 @@ def get_user_recommended__categories(user_id):
 def get_relevant_categories_products_data(user_id):
     try:
         data = apiLogic.get_relevant_category_products(user_id)
+
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/getRelevantCategoryProductsByCategory/<category_id>', methods=['GET'])
+def get_relevant_categories_products_data_by_category(category_id):
+    try:
+        data = apiLogic.get_relevant_category_products_by_category(category_id)
 
         return jsonify(data)
     except Exception as e:
@@ -90,7 +100,18 @@ def search_pickup_points():
     try:
         lat = float(request.args.get('lat', 0.0))
         lon = float(request.args.get('lon', 0.0))
-        return apiLogic.search_pickup_points_agp(lat, lon)
+        return jsonify(apiLogic.search_pickup_points_agp(lat, lon))
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/getNearByStoresProducts', methods=['GET'])
+def get_near_by_stores_products():
+    try:
+        lat = float(request.args.get('lat', 0.0))
+        lon = float(request.args.get('lon', 0.0))
+        return apiLogic.get_near_by_store_products(lat, lon)
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -109,6 +130,24 @@ def search_product_by_pp_code(pp_code):
 def search_pp_code_by_item_sku(item_sku):
     try:
         return jsonify(apiLogic.get_pp_codes_by_product(item_sku))
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/getNewArrivalProductsByCategory/<category_id>', methods=['GET'])
+def get_new_arrival_products(category_id):
+    try:
+        return jsonify(apiLogic.get_new_arrival_products_by_category(category_id))
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/getTopDiscountedProductsByCategory/<category_id>', methods=['GET'])
+def get_top_discounted_products(category_id):
+    try:
+        return jsonify(apiLogic.get_top_discounted_by_category(category_id))
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500

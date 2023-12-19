@@ -37,7 +37,7 @@ def get_user_data(user_id):
     }
     response_data = {
         "user_id": user_id,
-        "achieved_badges": badge_urls,
+        "achieved_badges": multivalued_field_values,
         "progress": progress,
         "currentBatch": current_batch,
     }
@@ -95,21 +95,26 @@ def get_pre_order_products_data(user_id):
     return results.docs
 
 
-def get_pre_order_products_data_for_category(user_id):
-    categories = get_user_recommended_categories(user_id)
+def get_pre_order_products_data_for_category(category_id):
+    # categories = get_user_recommended_categories(user_id)
     SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
     solr = pysolr.Solr(SOLR_URL, timeout=10)
 
     # Construct the Solr query with the user_id
-    category_codes = " OR ".join(categories)
+    # category_codes = " OR ".join(categories)
+    params1 = {
+        'fq': '{!collapse field = sku}',
+        'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice',
+        'rows': 10
+    }
     true = "true"
-    solr_query = f"salesCatalogCategoryIds:{category_codes} AND isPreorder:{true}"
+    solr_query = f"salesCatalogCategoryIds:{category_id} AND isPreorder:{true}"
     # Construct the Solr query with the user_id
     # solr_query = f"*:* AND isPreorder:{true}"
     print(solr_query)
 
     # Execute the Solr query and return the documents
-    results = solr.search(solr_query, rows=10)  # You can adjust the number of rows as needed
+    results = solr.search(solr_query,**params1, rows=10)  # You can adjust the number of rows as needed
     return results.docs
 
 
@@ -169,11 +174,35 @@ def get_relevant_category_products(user_id):
 
     # Construct the Solr query with the user_id
     category_codes = " OR ".join(categories)
+    params1 = {
+        'fq': '{!collapse field = sku}',
+        'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice',
+        'rows': 10
+    }
+    fqValue = '{!collapse field=sku}'
     solr_query = f"salesCatalogCategoryIds:{category_codes}"
     print(solr_query)
 
     # Execute the Solr query and return the documents
-    results = solr.search(solr_query, rows=10)  # You can adjust the number of rows as needed
+    results = solr.search(solr_query, **params1)  # You can adjust the number of rows as needed
+    return results.docs
+
+
+def get_relevant_category_products_by_category(category_id):
+    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
+    solr = pysolr.Solr(SOLR_URL, timeout=10)
+
+    # Construct the Solr query with the user_id
+    params1 = {
+        'fq': '{!collapse field = sku}',
+        'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice',
+        'rows': 10
+    }
+    solr_query = f"salesCatalogCategoryIds:{category_id}"
+    print(solr_query)
+
+    # Execute the Solr query and return the documents
+    results = solr.search(solr_query, **params1)  # You can adjust the number of rows as needed
     return results.docs
 
 
@@ -199,52 +228,62 @@ def get_all_badge_details():
         {
             "name": "Perfect Cart",
             "detail": "Bought more than 10+ products at once 10",
-            "url": "https://raw.githubusercontent.com/akhilesh-k/temp-static-image-hosting/main/perfect-cart.png"
+            "url": "https://raw.githubusercontent.com/akhilesh-k/temp-static-image-hosting/main/perfect-cart.png",
+            "id": "perfect-cart"
         },
         {
             "name": "Event Voyager",
             "detail": "Bought tickets for more than 5 events",
-            "url": "https://raw.githubusercontent.com/akhilesh-k/temp-static-image-hosting/main/event-voyager.png"
+            "url": "https://raw.githubusercontent.com/akhilesh-k/temp-static-image-hosting/main/event-voyager.png",
+            "id": "event-voyager"
         },
         {
             "name": "Show Savvy",
             "detail": "Bought tickets for more than 10 events",
-            "url": "https://raw.githubusercontent.com/akhilesh-k/temp-static-image-hosting/main/show-savvy.png"
+            "url": "https://raw.githubusercontent.com/akhilesh-k/temp-static-image-hosting/main/show-savvy.png",
+            "id": "show-savvy"
         },
         {
             "name": "Style Sculptor",
             "detail": "Bought a fashion product which was worth  5k",
-            "url": "https://raw.githubusercontent.com/akhilesh-k/temp-static-image-hosting/main/style-sculptor.png"
+            "url": "https://raw.githubusercontent.com/akhilesh-k/temp-static-image-hosting/main/style-sculptor.png",
+            "id": "style-sculptor"
         },
         {
             "name": "Glamour Guru",
             "detail": "Bought a fashion product which was worth  10k",
-            "url": "https://raw.githubusercontent.com/akhilesh-k/temp-static-image-hosting/main/glamour-guru.png"
+            "url": "https://raw.githubusercontent.com/akhilesh-k/temp-static-image-hosting/main/glamour-guru.png",
+            "id": "glamour-guru"
         },
         {
             "name": "Bundle Binge",
             "detail": "Bought more than 10+ products at once 10",
-            "url": "https://raw.githubusercontent.com/akhilesh-k/temp-static-image-hosting/main/bundle-binge.png"
+            "url": "https://raw.githubusercontent.com/akhilesh-k/temp-static-image-hosting/main/bundle-binge.png",
+            "id": "bundle-binge"
         },
         {
             "name": "Mega Saver",
             "detail": "Buying a product with more than  80%",
-            "url": "https://raw.githubusercontent.com/akhilesh-k/temp-static-image-hosting/main/mega-saver.png"
+            "url": "https://raw.githubusercontent.com/akhilesh-k/temp-static-image-hosting/main/mega-saver.png",
+            "id": "mega-saver"
         },
         {
             "name": "Ultra Saver",
             "detail": "Buying a product with more than 90%",
-            "url": "https://raw.githubusercontent.com/akhilesh-k/temp-static-image-hosting/main/ultra-saver.png"
+            "url": "https://raw.githubusercontent.com/akhilesh-k/temp-static-image-hosting/main/ultra-saver.png",
+            "id": "ultra-saver"
         },
         {
             "name": "Rush Gizmo",
             "detail": "Any tech product on 1st day",
-            "url": "https://raw.githubusercontent.com/akhilesh-k/temp-static-image-hosting/main/gizmo-rush.png"
+            "url": "https://raw.githubusercontent.com/akhilesh-k/temp-static-image-hosting/main/gizmo-rush.png",
+            "id": "gizmo-rush"
         },
         {
             "name": "Mobile Maestro",
             "detail": "Buying mobile in 1st hour of launch",
-            "url": "https://raw.githubusercontent.com/akhilesh-k/temp-static-image-hosting/main/mobile-maestro.png"
+            "url": "https://raw.githubusercontent.com/akhilesh-k/temp-static-image-hosting/main/mobile-maestro.png",
+            "id": "mobile-maestro"
         },
     ]
     return all_badge_details
@@ -252,7 +291,7 @@ def get_all_badge_details():
 
 def search_pickup_points_agp(lat, lon):
     # Get latitude and longitude from request parameters
-    print(lat,lon)
+    print(lat, lon)
     # Define the search query
     search_url = 'http://aggregate-platform-query.qa2-sg.cld/api-native/business_partner_pickup_points/_search'
     headers = {
@@ -295,7 +334,7 @@ def search_pickup_points_agp(lat, lon):
                     {
                         "geo_distance": {
                             "geoPoint": [lon, lat],
-                            "distance": 20000.0,
+                            "distance": 2000.0,
                             "distance_type": "plane",
                             "validation_method": "STRICT",
                             "ignore_unmapped": False,
@@ -375,19 +414,40 @@ def search_pickup_points_agp(lat, lon):
 
     result = response.json()
 
-    return jsonify(parsed_data)
+    return parsed_data
+
+
+def get_near_by_store_products(lat, lon):
+    # parsed_data = search_pickup_points_agp(lat, lon)
+    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
+    solr = pysolr.Solr(SOLR_URL, timeout=10)
+    code_list = [entry["code"] for entry in search_pickup_points_agp(lat, lon)]
+    pp_codes = " OR ".join(code_list)
+    print(pp_codes)
+    # Construct the Solr query with the user_id
+    solr_query = f"pickupPointCode:{pp_codes} AND cnc:true"
+    print(solr_query)
+    params = {
+        'fq': '{!collapse field = sku}',
+        'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice'
+    }
+    # Execute the Solr query and return the documents
+    results = solr.search(solr_query, **params, rows=10)  # You can adjust the number of rows as needed
+    return jsonify(results.docs)
 
 
 def get_product_by_pp_code(pp_code):
     SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
     solr = pysolr.Solr(SOLR_URL, timeout=10)
-
     # Construct the Solr query with the user_id
-    solr_query = f"pickupPointCode:{pp_code}"
+    solr_query = f"pickupPointCode:{pp_code} AND cnc:true"
     print(solr_query)
-
+    params = {
+        'fq': '{!collapse field = sku}',
+        'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice'
+    }
     # Execute the Solr query and return the documents
-    results = solr.search(solr_query, rows=10)  # You can adjust the number of rows as needed
+    results = solr.search(solr_query, **params, rows=10)  # You can adjust the number of rows as needed
     return results.docs
 
 
@@ -395,7 +455,7 @@ def get_pp_codes_by_product(item_sku):
     SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
     solr = pysolr.Solr(SOLR_URL, timeout=10)
     params = {
-        'fl': 'pickupPointCode,latLong,merchantCode'
+        'fl': 'pickupPointCode,latLong,merchantCode,merchantName'
     }
     # Construct the Solr query with the user_id
     solr_query = f"itemSku:{item_sku}"
@@ -407,14 +467,36 @@ def get_pp_codes_by_product(item_sku):
     return results.docs
 
 
-def get_seller_name(merchant_code):
-    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/sellerCollection"  # Update with your Solr URL
+def get_new_arrival_products_by_category(category_id):
+    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
     solr = pysolr.Solr(SOLR_URL, timeout=10)
+    date_range_month = f"[NOW-1YEAR TO NOW]"
     params = {
-        'fl': 'merchantName'
+        'fq': [
+              '{!collapse field = sku}',
+              'createdDate:[NOW-1YEAR TO NOW]'],
+        'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice'
     }
     # Construct the Solr query with the user_id
-    solr_query = f"merchant_code:{merchant_code}"
+    solr_query = f"salesCatalogCategoryIds:{category_id}"
+    print(solr_query)
+
+    # Execute the Solr query and return the documents
+    results = solr.search(solr_query, **params, rows=10)  # You can adjust the number of rows as needed
+
+    return results.docs
+
+
+def get_top_discounted_by_category(category_id):
+    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
+    solr = pysolr.Solr(SOLR_URL, timeout=10)
+    params = {
+        'fq': '{!collapse field = sku}',
+        'sort': 'discount desc',
+        'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice'
+    }
+    # Construct the Solr query with the user_id
+    solr_query = f"salesCatalogCategoryIds:{category_id}"
     print(solr_query)
 
     # Execute the Solr query and return the documents
