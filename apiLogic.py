@@ -4,6 +4,17 @@ import json
 import re
 
 from flask import jsonify
+import psycopg2
+from psycopg2 import sql
+
+# Connection parameters
+host = "postgres13-02.qa2-sg.cld"
+username = "pbpuser"
+password = "HiPlTlsHryGgV"
+database = "pbp"
+
+# Specify the SKU you want to query
+gdn_sku_to_query = "your_sku_here"
 
 # import savingForecastModel
 
@@ -12,7 +23,7 @@ store_id = "10001"
 channel_id = "10001"
 client_id = "10001"
 request_id = "bbiibhu"
-username = "codiecon"
+username = "pbpuser"
 
 
 def get_user_data(user_id):
@@ -240,12 +251,12 @@ def get_all_badge_details():
             "url": "https://raw.githubusercontent.com/akhilesh-k/temp-static-image-hosting/main/event-voyager.png",
             "id": "event-voyager"
         },
-        {
-            "name": "Show Savvy",
-            "detail": "Bought tickets for more than 10 events",
-            "url": "https://raw.githubusercontent.com/akhilesh-k/temp-static-image-hosting/main/show-savvy.png",
-            "id": "show-savvy"
-        },
+        # {
+        #     "name": "Show Savvy",
+        #     "detail": "Bought tickets for more than 10 events",
+        #     "url": "https://raw.githubusercontent.com/akhilesh-k/temp-static-image-hosting/main/show-savvy.png",
+        #     "id": "show-savvy"
+        # },
         {
             "name": "Style Sculptor",
             "detail": "Bought a fashion product which was worth  5k",
@@ -450,10 +461,12 @@ def get_near_by_store_recommended_products(lat, lon, user_id):
     categories = get_user_recommended_categories(user_id)
     category_codes = " OR ".join(categories)
     # Construct the Solr query with the user_id
-    solr_query = f"pickupPointCode:{pp_codes} AND salesCatalogCategoryIds:{category_codes} AND cnc:true"
+    solr_query = f"pickupPointCode:{pp_codes} AND salesCatalogCategoryIds:{category_codes}"
     print(solr_query)
     params = {
-        'fq': '{!collapse field = sku}',
+        'fq': [
+            '{!collapse field = sku}',
+            'cnc:true'],
         'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice,sku,itemSku,pickupPointCode'
     }
     # Execute the Solr query and return the documents
@@ -461,6 +474,56 @@ def get_near_by_store_recommended_products(lat, lon, user_id):
     add_url_to_response(results)
     return jsonify(results.docs)
 
+
+def get_near_by_store_recommended_products_by_pp_code(lat, lon, user_id, pickup_point_code):
+    # parsed_data = search_pickup_points_agp(lat, lon)
+    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
+    solr = pysolr.Solr(SOLR_URL, timeout=10)
+    code_list = [entry["code"] for entry in search_pickup_points_agp(lat, lon)]
+    pp_codes = " OR ".join(code_list)
+    print(pp_codes)
+    categories = get_user_recommended_categories(user_id)
+    category_codes = " OR ".join(categories)
+    # Construct the Solr query with the user_id
+    solr_query = f"pickupPointCode:{pickup_point_code} AND salesCatalogCategoryIds:{category_codes}"
+    print(solr_query)
+    params = {
+        'fq': [
+            '{!collapse field = sku}',
+            'cnc:true'],
+        'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice,sku,itemSku,pickupPointCode'
+    }
+    # Execute the Solr query and return the documents
+    results = solr.search(solr_query, **params, rows=10)  # You can adjust the number of rows as needed
+    add_url_to_response(results)
+    return jsonify(results.docs)
+
+
+def get_near_by_store_recommended_products_by_item_sku(lat, lon, user_id, item_sku):
+    # parsed_data = search_pickup_points_agp(lat, lon)
+    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
+    solr = pysolr.Solr(SOLR_URL, timeout=10)
+    code_list = [entry["code"] for entry in search_pickup_points_agp(lat, lon)]
+    pp_codes = " OR ".join(code_list)
+    print(pp_codes)
+    categories = get_user_recommended_categories(user_id)
+    category_codes = " OR ".join(categories)
+    # Construct the Solr query with the user_id
+    solr_query = f"itemSku:{item_sku} AND salesCatalogCategoryIds:{category_codes}"
+    print(solr_query)
+    params = {
+        'fq': [
+            '{!collapse field = sku}',
+            'cnc:true'],
+        'fl': 'pickupPointCode,latLong,merchantCode,merchantName'
+    }
+    # params = {
+    #     'fl': 'pickupPointCode,latLong,merchantCode,merchantName'
+    # }
+    # Execute the Solr query and return the documents
+    results = solr.search(solr_query, **params, rows=10)  # You can adjust the number of rows as needed
+    # add_url_to_response(results)
+    return jsonify(results.docs)
 
 def get_product_by_pp_code(pp_code):
     SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
@@ -535,6 +598,7 @@ def get_top_discounted_by_category(category_id):
 
 def add_url_to_response(response):
     base_url = "https://wwwuatb.gdn-app.com/p/{name}/ps--{sku}?ds={itemSku}&source=SEARCH&cnc=true&pickupPointCode={pickupPointCode}&pid1={sku}"
+    base_url1 = "https://static-uatb.gdn-app.com/wcsstore/Indraprastha/images/catalog/full{mu}"
 
     # Iterate through each document in the response
     for document in response:
@@ -548,6 +612,14 @@ def add_url_to_response(response):
 
         # Append the URL to the document
         document["url"] = url
+
+    for document in response:
+        # Create the URL using document values
+        url = base_url1.format(
+            mu=document["mediumImage"]
+        )
+        # Append the URL to the document
+        document["mediumImage"] = url
 
     return response
 
@@ -563,3 +635,66 @@ def create_url_friendly_string(s):
     url_friendly = url_friendly.strip('-')
 
     return url_friendly
+
+
+def get_price_drop_products(category_id):
+    sku_list = get_relevant_category_products_by_category_skus(category_id)
+    return query_postgres(sku_list)
+
+
+def query_postgres(gdn_skus):
+    global connection, cursor
+    try:
+        connection = psycopg2.connect(
+            host=host,
+            user=username,
+            password=password,
+            database=database
+        )
+
+        # Create a cursor object to execute SQL queries
+        cursor = connection.cursor()
+        # query = sql.SQL('SELECT * FROM prd_updated_product_history WHERE gdn_sku IN ({})').format(
+        #     sql.SQL(', ').join(map(sql.Placeholder, range(len(gdn_skus))))
+        # )
+        query = sql.SQL('SELECT * FROM prd_updated_product_history WHERE gdn_sku IN ({})').format(
+            sql.SQL(', ').join(map(sql.Identifier, gdn_skus))
+        )
+        # Example: Execute a query to fetch data for a specific SKU
+        cursor.execute(query, (gdn_sku_to_query,))
+
+        # Fetch the results
+        rows = cursor.fetchall()
+
+        for row in rows:
+            print(row)
+
+    except psycopg2.Error as e:
+        print("Error connecting to PostgreSQL:", e)
+
+    finally:
+        # Close the cursor and connection
+        if connection:
+            cursor.close()
+            connection.close()
+            print("Connection closed.")
+
+
+def get_relevant_category_products_by_category_skus(category_id):
+    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
+    solr = pysolr.Solr(SOLR_URL, timeout=10)
+
+    # Construct the Solr query with the user_id
+    params1 = {
+        'fq': '{!collapse field = sku}',
+        'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice,sku,itemSku,pickupPointCode',
+        'rows': 10
+    }
+    solr_query = f"salesCatalogCategoryIds:{category_id}"
+    print(solr_query)
+
+    # Execute the Solr query and return the documents
+    results = solr.search(solr_query, **params1)  # You can adjust the number of rows as needed
+    # add_url_to_response(results)
+    sku_list = [doc['sku'] for doc in results.docs]
+    return sku_list
