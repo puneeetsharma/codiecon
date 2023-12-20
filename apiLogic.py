@@ -2,6 +2,7 @@ import pysolr
 import requests
 import json
 import re
+import os
 
 from flask import jsonify
 import psycopg2
@@ -57,6 +58,42 @@ def get_user_data(user_id):
     return response_data
 
 
+def process_uploaded_image(user_id, filename, app):
+    try:
+        # Establish a connection to the PostgreSQL database
+        connection = psycopg2.connect(
+            host=host,
+            user=username,
+            password=password,
+            database=database
+        )
+
+        cursor = connection.cursor()
+        file_path = os.path.join(
+            app.config['UPLOADS_DEFAULT_DEST'], 'images', filename)
+        with open(file_path, 'rb') as file:
+            file_data = file.read()
+
+        insert_query = """
+            INSERT INTO file_table (user_id, filename, file_data)
+            VALUES (%s, %s, %s)
+        """
+
+        cursor.execute(insert_query, (user_id, filename, file_data))
+        connection.commit()
+
+        return {'success': 'Image details saved for the user successfully'}
+
+    except psycopg2.Error as e:
+        return {'error': f"Database error: {e}"}
+
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
 def get_savings_data(user_id):
     SOLR_URL = "http://localhost:8983/solr/orderCollection"  # Update with your Solr URL
     solr = pysolr.Solr(SOLR_URL, timeout=10)
@@ -69,7 +106,8 @@ def get_savings_data(user_id):
         'stats': 'true',
         'stats.field': '{!sum=true}discountAvailed'
     }
-    results = solr.search(solr_query, **params)  # You can adjust the number of rows as needed
+    # You can adjust the number of rows as needed
+    results = solr.search(solr_query, **params)
     total_discount = results.stats['stats_fields']['discountAvailed']['sum']
     date_range_month = f"[NOW-1MONTH TO NOW]"
     solr_query_last_month = f"userId:{user_id} AND orderDate:{date_range_month}"
@@ -82,7 +120,8 @@ def get_savings_data(user_id):
         'stats.field': '{!sum=true}savingPercentage'
     }
     results_saving_percentage = solr.search(solr_query, **params1)
-    total_discount_saving_percentage = results_saving_percentage.stats['stats_fields']['savingPercentage']['sum']
+    total_discount_saving_percentage = results_saving_percentage.stats[
+        'stats_fields']['savingPercentage']['sum']
 
     api_response = {
         "total_discount_saving_percentage": total_discount_saving_percentage,
@@ -94,7 +133,8 @@ def get_savings_data(user_id):
 
 
 def get_pre_order_products_data(user_id):
-    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
+    # Update with your Solr URL
+    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"
     solr = pysolr.Solr(SOLR_URL, timeout=10)
 
     # Construct the Solr query with the user_id
@@ -103,13 +143,15 @@ def get_pre_order_products_data(user_id):
     print(solr_query)
 
     # Execute the Solr query and return the documents
-    results = solr.search(solr_query, rows=10)  # You can adjust the number of rows as needed
+    # You can adjust the number of rows as needed
+    results = solr.search(solr_query, rows=10)
     return results.docs
 
 
 def get_pre_order_products_data_for_category(category_id):
     # categories = get_user_recommended_categories(user_id)
-    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
+    # Update with your Solr URL
+    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"
     solr = pysolr.Solr(SOLR_URL, timeout=10)
 
     # Construct the Solr query with the user_id
@@ -125,13 +167,15 @@ def get_pre_order_products_data_for_category(category_id):
     print(solr_query)
 
     # Execute the Solr query and return the documents
-    results = solr.search(solr_query, **params1, rows=10)  # You can adjust the number of rows as needed
+    # You can adjust the number of rows as needed
+    results = solr.search(solr_query, **params1, rows=10)
     add_url_to_response(results)
     return results.docs
 
 
 def get_user_recommended_categories(user_id):
-    SOLR_URL = "http://brs-solr-1.qa2-sg.cld:8983/solr/userProfileCollection"  # Update with your Solr URL
+    # Update with your Solr URL
+    SOLR_URL = "http://brs-solr-1.qa2-sg.cld:8983/solr/userProfileCollection"
     solr = pysolr.Solr(SOLR_URL, timeout=10)
 
     # Construct the Solr query with the user_id
@@ -139,7 +183,8 @@ def get_user_recommended_categories(user_id):
     # print(solr_query)
 
     # Execute the Solr query and return the documents
-    results = solr.search(solr_query, rows=10)  # You can adjust the number of rows as needed
+    # You can adjust the number of rows as needed
+    results = solr.search(solr_query, rows=10)
     for result in results.docs:
         # Assuming 'discount' is a field in your Solr schema
         categories = []
@@ -154,7 +199,8 @@ def get_user_recommended_categories_names(user_id):
     category_data_dict = {}
 
     for category_code in categories:
-        category_data = fetch_category_data(category_code, store_id, channel_id, client_id, request_id, username)
+        category_data = fetch_category_data(
+            category_code, store_id, channel_id, client_id, request_id, username)
         if category_data:
             category_data_dict[category_code] = category_data
 
@@ -181,7 +227,8 @@ def fetch_category_data(category_code, store_id, channel_id, client_id, request_
 
 def get_relevant_category_products(user_id):
     categories = get_user_recommended_categories(user_id)
-    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
+    # Update with your Solr URL
+    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"
     solr = pysolr.Solr(SOLR_URL, timeout=10)
 
     # Construct the Solr query with the user_id
@@ -196,13 +243,15 @@ def get_relevant_category_products(user_id):
     print(solr_query)
 
     # Execute the Solr query and return the documents
-    results = solr.search(solr_query, **params1)  # You can adjust the number of rows as needed
+    # You can adjust the number of rows as needed
+    results = solr.search(solr_query, **params1)
     add_url_to_response(results)
     return results.docs
 
 
 def get_relevant_category_products_by_category(category_id):
-    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
+    # Update with your Solr URL
+    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"
     solr = pysolr.Solr(SOLR_URL, timeout=10)
 
     # Construct the Solr query with the user_id
@@ -215,14 +264,16 @@ def get_relevant_category_products_by_category(category_id):
     print(solr_query)
 
     # Execute the Solr query and return the documents
-    results = solr.search(solr_query, **params1)  # You can adjust the number of rows as needed
+    # You can adjust the number of rows as needed
+    results = solr.search(solr_query, **params1)
     add_url_to_response(results)
     return results.docs
 
 
 def get_relevant_category_products_sort_by_price(user_id):
     categories = get_user_recommended_categories(user_id)
-    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
+    # Update with your Solr URL
+    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"
     solr = pysolr.Solr(SOLR_URL, timeout=10)
 
     # Construct the Solr query with the user_id
@@ -433,7 +484,8 @@ def search_pickup_points_agp(lat, lon):
 
 def get_near_by_store_products(lat, lon):
     # parsed_data = search_pickup_points_agp(lat, lon)
-    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
+    # Update with your Solr URL
+    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"
     solr = pysolr.Solr(SOLR_URL, timeout=10)
     code_list = [entry["code"] for entry in search_pickup_points_agp(lat, lon)]
     pp_codes = " OR ".join(code_list)
@@ -446,14 +498,16 @@ def get_near_by_store_products(lat, lon):
         'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice,sku,itemSku,pickupPointCode'
     }
     # Execute the Solr query and return the documents
-    results = solr.search(solr_query, **params, rows=10)  # You can adjust the number of rows as needed
+    # You can adjust the number of rows as needed
+    results = solr.search(solr_query, **params, rows=10)
     add_url_to_response(results)
     return jsonify(results.docs)
 
 
 def get_near_by_store_recommended_products(lat, lon, user_id):
     # parsed_data = search_pickup_points_agp(lat, lon)
-    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
+    # Update with your Solr URL
+    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"
     solr = pysolr.Solr(SOLR_URL, timeout=10)
     code_list = [entry["code"] for entry in search_pickup_points_agp(lat, lon)]
     pp_codes = " OR ".join(code_list)
@@ -470,14 +524,16 @@ def get_near_by_store_recommended_products(lat, lon, user_id):
         'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice,sku,itemSku,pickupPointCode'
     }
     # Execute the Solr query and return the documents
-    results = solr.search(solr_query, **params, rows=10)  # You can adjust the number of rows as needed
+    # You can adjust the number of rows as needed
+    results = solr.search(solr_query, **params, rows=10)
     add_url_to_response(results)
     return jsonify(results.docs)
 
 
 def get_near_by_store_recommended_products_by_pp_code(lat, lon, user_id, pickup_point_code):
     # parsed_data = search_pickup_points_agp(lat, lon)
-    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
+    # Update with your Solr URL
+    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"
     solr = pysolr.Solr(SOLR_URL, timeout=10)
     code_list = [entry["code"] for entry in search_pickup_points_agp(lat, lon)]
     pp_codes = " OR ".join(code_list)
@@ -494,14 +550,16 @@ def get_near_by_store_recommended_products_by_pp_code(lat, lon, user_id, pickup_
         'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice,sku,itemSku,pickupPointCode'
     }
     # Execute the Solr query and return the documents
-    results = solr.search(solr_query, **params, rows=10)  # You can adjust the number of rows as needed
+    # You can adjust the number of rows as needed
+    results = solr.search(solr_query, **params, rows=10)
     add_url_to_response(results)
     return jsonify(results.docs)
 
 
 def get_near_by_store_recommended_products_by_item_sku(lat, lon, user_id, item_sku):
     # parsed_data = search_pickup_points_agp(lat, lon)
-    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
+    # Update with your Solr URL
+    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"
     solr = pysolr.Solr(SOLR_URL, timeout=10)
     code_list = [entry["code"] for entry in search_pickup_points_agp(lat, lon)]
     pp_codes = " OR ".join(code_list)
@@ -521,12 +579,15 @@ def get_near_by_store_recommended_products_by_item_sku(lat, lon, user_id, item_s
     #     'fl': 'pickupPointCode,latLong,merchantCode,merchantName'
     # }
     # Execute the Solr query and return the documents
-    results = solr.search(solr_query, **params, rows=10)  # You can adjust the number of rows as needed
+    # You can adjust the number of rows as needed
+    results = solr.search(solr_query, **params, rows=10)
     # add_url_to_response(results)
     return jsonify(results.docs)
 
+
 def get_product_by_pp_code(pp_code):
-    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
+    # Update with your Solr URL
+    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"
     solr = pysolr.Solr(SOLR_URL, timeout=10)
     # Construct the Solr query with the user_id
     solr_query = f"pickupPointCode:{pp_code} AND cnc:true"
@@ -536,13 +597,15 @@ def get_product_by_pp_code(pp_code):
         'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice,sku,itemSku,pickupPointCode'
     }
     # Execute the Solr query and return the documents
-    results = solr.search(solr_query, **params, rows=10)  # You can adjust the number of rows as needed
+    # You can adjust the number of rows as needed
+    results = solr.search(solr_query, **params, rows=10)
     add_url_to_response(results)
     return results.docs
 
 
 def get_pp_codes_by_product(item_sku):
-    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
+    # Update with your Solr URL
+    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"
     solr = pysolr.Solr(SOLR_URL, timeout=10)
     params = {
         'fl': 'pickupPointCode,latLong,merchantCode,merchantName'
@@ -552,13 +615,15 @@ def get_pp_codes_by_product(item_sku):
     print(solr_query)
 
     # Execute the Solr query and return the documents
-    results = solr.search(solr_query, **params, rows=10)  # You can adjust the number of rows as needed
+    # You can adjust the number of rows as needed
+    results = solr.search(solr_query, **params, rows=10)
 
     return results.docs
 
 
 def get_new_arrival_products_by_category(category_id):
-    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
+    # Update with your Solr URL
+    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"
     solr = pysolr.Solr(SOLR_URL, timeout=10)
     date_range_month = f"[NOW-1YEAR TO NOW]"
     params = {
@@ -572,14 +637,16 @@ def get_new_arrival_products_by_category(category_id):
     print(solr_query)
 
     # Execute the Solr query and return the documents
-    results = solr.search(solr_query, **params, rows=10)  # You can adjust the number of rows as needed
+    # You can adjust the number of rows as needed
+    results = solr.search(solr_query, **params, rows=10)
     add_url_to_response(results)
 
     return results.docs
 
 
 def get_top_discounted_by_category(category_id):
-    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
+    # Update with your Solr URL
+    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"
     solr = pysolr.Solr(SOLR_URL, timeout=10)
     params = {
         'fq': '{!collapse field = sku}',
@@ -591,7 +658,8 @@ def get_top_discounted_by_category(category_id):
     print(solr_query)
 
     # Execute the Solr query and return the documents
-    results = solr.search(solr_query, **params, rows=10)  # You can adjust the number of rows as needed
+    # You can adjust the number of rows as needed
+    results = solr.search(solr_query, **params, rows=10)
     print(add_url_to_response(results))
     return results.docs
 
@@ -681,7 +749,8 @@ def query_postgres(gdn_skus):
 
 
 def get_relevant_category_products_by_category_skus(category_id):
-    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
+    # Update with your Solr URL
+    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"
     solr = pysolr.Solr(SOLR_URL, timeout=10)
 
     # Construct the Solr query with the user_id
@@ -694,7 +763,8 @@ def get_relevant_category_products_by_category_skus(category_id):
     print(solr_query)
 
     # Execute the Solr query and return the documents
-    results = solr.search(solr_query, **params1)  # You can adjust the number of rows as needed
+    # You can adjust the number of rows as needed
+    results = solr.search(solr_query, **params1)
     # add_url_to_response(results)
     sku_list = [doc['sku'] for doc in results.docs]
     return sku_list

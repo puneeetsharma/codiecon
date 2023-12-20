@@ -1,10 +1,20 @@
 from flask import Flask, jsonify, request
+from flask_uploads import UploadSet, configure_uploads, IMAGES
 import apiLogic
-import requests
+import os
 from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
+
+upload_folder = 'uploads'
+app.config['UPLOADS_DEFAULT_DEST'] = os.path.join(os.getcwd(), upload_folder)
+app.config['UPLOADED_IMAGES_DEST'] = os.path.join(
+    app.config['UPLOADS_DEFAULT_DEST'], 'images')
+app.config['UPLOADED_IMAGES_ALLOW'] = IMAGES
+
+images = UploadSet('images', IMAGES)
+configure_uploads(app, images)
 
 
 @app.route('/getUserBatchDetails/<user_id>', methods=['GET'])
@@ -69,7 +79,8 @@ def get_relevant_categories_products_data(user_id):
 @app.route('/getRelevantCategoryProductsByCategory/<category_id>', methods=['GET'])
 def get_relevant_categories_products_data_by_category(category_id):
     try:
-        data = apiLogic.get_relevant_category_products_by_category_skus(category_id)
+        data = apiLogic.get_relevant_category_products_by_category_skus(
+            category_id)
 
         return jsonify(data)
     except Exception as e:
@@ -195,6 +206,27 @@ def get_top_discounted_products(category_id):
 def get_price_drop_products(category_id):
     try:
         return jsonify(apiLogic.get_price_drop_products(category_id))
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/uploadImage', methods=['POST'])
+def upload_image():
+    try:
+        if 'image' not in request.files:
+            return jsonify({'error': 'No image provided'}), 400
+        user_id = request.args.get('userId', "")
+        if 'user_id' is None or user_id == "":
+            return jsonify({'error': 'UserId not provided'}), 400
+
+        uploaded_file = request.files['image']
+        if uploaded_file.filename == '':
+            return jsonify({'error': 'No selected file'}), 400
+        filename = images.save(uploaded_file)
+        apiLogic.process_uploaded_image(user_id, filename, app)
+
+        return jsonify({'success': 'Image uploaded successfully', 'filename': filename})
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
