@@ -117,6 +117,18 @@ def get_near_by_stores_products():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/getNearByStoresRecommendedProducts', methods=['GET'])
+def get_near_by_stores_products():
+    try:
+        lat = float(request.args.get('lat', 0.0))
+        lon = float(request.args.get('lon', 0.0))
+        user_id = request.args.get('user_id')
+        return apiLogic.get_near_by_store_recommended_products(lat, lon, user_id)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/getProductByPickUpPointCode/<pp_code>', methods=['GET'])
 def search_product_by_pp_code(pp_code):
     try:

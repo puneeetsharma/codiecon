@@ -1,6 +1,7 @@
 import pysolr
 import requests
 import json
+import re
 
 from flask import jsonify
 
@@ -104,8 +105,7 @@ def get_pre_order_products_data_for_category(category_id):
     # category_codes = " OR ".join(categories)
     params1 = {
         'fq': '{!collapse field = sku}',
-        'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice',
-        'rows': 10
+        'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice,sku,itemSku,pickupPointCode'
     }
     true = "true"
     solr_query = f"salesCatalogCategoryIds:{category_id} AND isPreorder:{true}"
@@ -114,7 +114,8 @@ def get_pre_order_products_data_for_category(category_id):
     print(solr_query)
 
     # Execute the Solr query and return the documents
-    results = solr.search(solr_query,**params1, rows=10)  # You can adjust the number of rows as needed
+    results = solr.search(solr_query, **params1, rows=10)  # You can adjust the number of rows as needed
+    add_url_to_response(results)
     return results.docs
 
 
@@ -176,7 +177,7 @@ def get_relevant_category_products(user_id):
     category_codes = " OR ".join(categories)
     params1 = {
         'fq': '{!collapse field = sku}',
-        'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice',
+        'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice,sku,itemSku,pickupPointCode',
         'rows': 10
     }
     fqValue = '{!collapse field=sku}'
@@ -185,6 +186,7 @@ def get_relevant_category_products(user_id):
 
     # Execute the Solr query and return the documents
     results = solr.search(solr_query, **params1)  # You can adjust the number of rows as needed
+    add_url_to_response(results)
     return results.docs
 
 
@@ -195,7 +197,7 @@ def get_relevant_category_products_by_category(category_id):
     # Construct the Solr query with the user_id
     params1 = {
         'fq': '{!collapse field = sku}',
-        'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice',
+        'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice,sku,itemSku,pickupPointCode',
         'rows': 10
     }
     solr_query = f"salesCatalogCategoryIds:{category_id}"
@@ -203,6 +205,7 @@ def get_relevant_category_products_by_category(category_id):
 
     # Execute the Solr query and return the documents
     results = solr.search(solr_query, **params1)  # You can adjust the number of rows as needed
+    add_url_to_response(results)
     return results.docs
 
 
@@ -429,10 +432,33 @@ def get_near_by_store_products(lat, lon):
     print(solr_query)
     params = {
         'fq': '{!collapse field = sku}',
-        'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice'
+        'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice,sku,itemSku,pickupPointCode'
     }
     # Execute the Solr query and return the documents
     results = solr.search(solr_query, **params, rows=10)  # You can adjust the number of rows as needed
+    add_url_to_response(results)
+    return jsonify(results.docs)
+
+
+def get_near_by_store_recommended_products(lat, lon, user_id):
+    # parsed_data = search_pickup_points_agp(lat, lon)
+    SOLR_URL = "http://xsearch-solr-1.qa2-sg.cld:8983/solr/retailCollection"  # Update with your Solr URL
+    solr = pysolr.Solr(SOLR_URL, timeout=10)
+    code_list = [entry["code"] for entry in search_pickup_points_agp(lat, lon)]
+    pp_codes = " OR ".join(code_list)
+    print(pp_codes)
+    categories = get_user_recommended_categories(user_id)
+    category_codes = " OR ".join(categories)
+    # Construct the Solr query with the user_id
+    solr_query = f"pickupPointCode:{pp_codes} AND salesCatalogCategoryIds:{category_codes} AND cnc:true"
+    print(solr_query)
+    params = {
+        'fq': '{!collapse field = sku}',
+        'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice,sku,itemSku,pickupPointCode'
+    }
+    # Execute the Solr query and return the documents
+    results = solr.search(solr_query, **params, rows=10)  # You can adjust the number of rows as needed
+    add_url_to_response(results)
     return jsonify(results.docs)
 
 
@@ -444,10 +470,11 @@ def get_product_by_pp_code(pp_code):
     print(solr_query)
     params = {
         'fq': '{!collapse field = sku}',
-        'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice'
+        'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice,sku,itemSku,pickupPointCode'
     }
     # Execute the Solr query and return the documents
     results = solr.search(solr_query, **params, rows=10)  # You can adjust the number of rows as needed
+    add_url_to_response(results)
     return results.docs
 
 
@@ -473,9 +500,9 @@ def get_new_arrival_products_by_category(category_id):
     date_range_month = f"[NOW-1YEAR TO NOW]"
     params = {
         'fq': [
-              '{!collapse field = sku}',
-              'createdDate:[NOW-1YEAR TO NOW]'],
-        'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice'
+            '{!collapse field = sku}',
+            'createdDate:[NOW-1YEAR TO NOW]'],
+        'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice,sku,itemSku,pickupPointCode'
     }
     # Construct the Solr query with the user_id
     solr_query = f"salesCatalogCategoryIds:{category_id}"
@@ -483,6 +510,7 @@ def get_new_arrival_products_by_category(category_id):
 
     # Execute the Solr query and return the documents
     results = solr.search(solr_query, **params, rows=10)  # You can adjust the number of rows as needed
+    add_url_to_response(results)
 
     return results.docs
 
@@ -493,7 +521,7 @@ def get_top_discounted_by_category(category_id):
     params = {
         'fq': '{!collapse field = sku}',
         'sort': 'discount desc',
-        'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice'
+        'fl': 'mediumImage,name,merchantName,discount,salePrice,listPrice,sku,itemSku,pickupPointCode'
     }
     # Construct the Solr query with the user_id
     solr_query = f"salesCatalogCategoryIds:{category_id}"
@@ -501,5 +529,37 @@ def get_top_discounted_by_category(category_id):
 
     # Execute the Solr query and return the documents
     results = solr.search(solr_query, **params, rows=10)  # You can adjust the number of rows as needed
-
+    print(add_url_to_response(results))
     return results.docs
+
+
+def add_url_to_response(response):
+    base_url = "https://wwwuatb.gdn-app.com/p/{name}/ps--{sku}?ds={itemSku}&source=SEARCH&cnc=true&pickupPointCode={pickupPointCode}&pid1={sku}"
+
+    # Iterate through each document in the response
+    for document in response:
+        # Create the URL using document values
+        url = base_url.format(
+            name=create_url_friendly_string(document["name"]),
+            sku=document["sku"],
+            itemSku=document["itemSku"],
+            pickupPointCode=document["pickupPointCode"]
+        )
+
+        # Append the URL to the document
+        document["url"] = url
+
+    return response
+
+
+def create_url_friendly_string(s):
+    if not s:
+        return ""
+
+    # Convert to lowercase and replace non-alphanumeric characters with "-"
+    url_friendly = re.sub(r'[^a-zA-Z0-9]+', '-', s.lower())
+
+    # Remove leading and trailing "-"
+    url_friendly = url_friendly.strip('-')
+
+    return url_friendly
