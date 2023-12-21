@@ -45,7 +45,8 @@ def process_message(message):
                 {
                     "userId": payload['user_id'],
                     "achieved": achieved_badges,
-                    "id": payload['id']
+                    "id": payload['id'],
+                    "progress": payload['progress']
                 }
             ])
 

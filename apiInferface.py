@@ -3,6 +3,7 @@ from flask_uploads import UploadSet, configure_uploads, IMAGES
 import apiLogic
 import os
 from flask_cors import CORS
+import cloudinary.uploader
 
 app = Flask(__name__)
 CORS(app)
@@ -15,6 +16,26 @@ app.config['UPLOADED_IMAGES_ALLOW'] = IMAGES
 
 images = UploadSet('images', IMAGES)
 configure_uploads(app, images)
+
+cloudinary.config(
+    cloud_name='akhi',
+    api_key='378827219998729',
+    api_secret='fgqnwSlJ0bcIk422g0UHMKTcOqY'
+)
+
+
+@app.route("/upload/<user_id>", methods=['POST'])
+def upload_file(user_id):
+    app.logger.info('in upload route')
+    upload_result = None
+    if request.method == 'POST':
+        file_to_upload = request.files['image']
+        app.logger.info('%s file_to_upload', file_to_upload)
+        if file_to_upload:
+            upload_result = cloudinary.uploader.upload(file_to_upload)
+            app.logger.info(upload_result)
+            apiLogic.process_uploaded_image(user_id, upload_result.get("url"))
+            return jsonify({"profilePhoto": upload_result["url"],"userId": user_id})
 
 
 @app.route('/getUserBatchDetails/<user_id>', methods=['GET'])
@@ -217,7 +238,7 @@ def upload_image():
         if 'image' not in request.files:
             return jsonify({'error': 'No image provided'}), 400
         user_id = request.args.get('userId', "")
-        if 'user_id' is None or user_id == "":
+        if not user_id:
             return jsonify({'error': 'UserId not provided'}), 400
 
         uploaded_file = request.files['image']
