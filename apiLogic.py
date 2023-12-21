@@ -680,6 +680,10 @@ def add_url_to_response(response):
         document["url"] = url
 
     for document in response:
+        if document["sku"] == 'LAY-70007-34922':
+            document["mediumImage"] = '/catalog-image/96/MTA-49427313/oem_samsung_galaxy_s23_ultra_full01_r407bq0q.jpg'
+        if document["sku"] == 'DUT-70015-00007':
+            document["mediumImage"] = '/catalog-image/95/MTA-49416304/puma_apiautomation_full0493.jpg'
         # Create the URL using document values
         url = base_url1.format(
             mu=document["mediumImage"]

@@ -39,6 +39,7 @@ def process_message(message):
         if user_document:
             achieved_badges = user_document.get('achieved', [])
             achieved_badges.append(payload['badge_name'])
+            url = user_document.get('url')
 
             # Submit the updated document for indexing
             solr.add([
@@ -46,7 +47,8 @@ def process_message(message):
                     "userId": payload['user_id'],
                     "achieved": achieved_badges,
                     "id": payload['id'],
-                    "progress": payload['progress']
+                    "progress": payload['progress'],
+                    "url": url
                 }
             ])
 
